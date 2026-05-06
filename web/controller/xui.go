@@ -28,6 +28,7 @@ func (a *XUIController) initRouter(g *gin.RouterGroup) {
 	g.GET("/inbounds", a.inbounds)
 	g.GET("/settings", a.settings)
 	g.GET("/xray", a.xraySettings)
+	g.GET("/wallet", a.wallet)
 
 	a.settingController = NewSettingController(g)
 	a.xraySettingController = NewXraySettingController(g)
@@ -51,4 +52,9 @@ func (a *XUIController) settings(c *gin.Context) {
 // xraySettings renders the Xray settings page.
 func (a *XUIController) xraySettings(c *gin.Context) {
 	html(c, "xray.html", "pages.xray.title", nil)
+}
+
+// wallet renders the offline wallet page.
+func (a *XUIController) wallet(c *gin.Context) {
+	html(c, "wallet.html", "pages.wallet.title", nil)
 }

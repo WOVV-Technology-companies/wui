@@ -1,0 +1,389 @@
+{{ template "page/head_start" .}}
+<style>
+  .wallet-page .wallet-hero {
+    background: linear-gradient(135deg, #1677ff 0%, #36cfc9 100%);
+    border-radius: 12px;
+    color: #fff;
+    padding: 24px;
+    overflow: hidden;
+    position: relative;
+  }
+  .wallet-page .wallet-hero::after {
+    background: rgba(255, 255, 255, .16);
+    border-radius: 999px;
+    content: "";
+    height: 220px;
+    position: absolute;
+    right: -70px;
+    top: -90px;
+    width: 220px;
+  }
+  .wallet-page .wallet-hero h1,
+  .wallet-page .wallet-hero p {
+    color: #fff;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .wallet-page .wallet-hero p {
+    margin-top: 8px;
+    max-width: 760px;
+    opacity: .92;
+  }
+  .wallet-page .mono-field,
+  .wallet-page .ant-input {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+  .wallet-page .break-all {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .wallet-page .wallet-status {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+  }
+  .wallet-page .wallet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
+{{ template "page/head_end" .}}
+
+{{ template "page/body_start" .}}
+<a-layout id="app" v-cloak :class="themeSwitcher.currentTheme + ' wallet-page'">
+  <a-sidebar></a-sidebar>
+  <a-layout id="content-layout">
+    <a-layout-content>
+      <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 8 : 16]">
+        <a-col :span="24">
+          <div class="wallet-hero">
+            <h1>离线网页钱包</h1>
+            <p>所有密钥生成、加密保存、导入导出与签名都在当前浏览器本地完成。页面不会调用任何钱包、区块链或第三方接口。</p>
+          </div>
+        </a-col>
+
+        <a-col :span="24">
+          <a-alert type="warning" show-icon message="请在可信离线环境中使用">
+            <template slot="description">
+              该钱包使用浏览器 Web Crypto 生成 P-256 ECDSA 密钥，适合作为离线签名与密钥保管工具；它不是 BIP39/助记词钱包，也不会自动连接任何公链。请妥善离线备份导出的加密钱包文件。
+            </template>
+          </a-alert>
+        </a-col>
+
+        <a-col :xs="24" :lg="10">
+          <a-card hoverable title="钱包控制台">
+            <a-space direction="vertical" style="width: 100%" size="middle">
+              <div class="wallet-status">
+                <a-badge :status="wallet ? 'success' : 'default'"></a-badge>
+                <strong>[[ wallet ? '钱包已加载' : '尚未加载钱包' ]]</strong>
+              </div>
+
+              <a-form layout="vertical">
+                <a-form-item label="钱包名称">
+                  <a-input v-model="walletName" placeholder="例如：Cold Wallet"></a-input>
+                </a-form-item>
+                <a-form-item label="本地加密密码">
+                  <a-input-password v-model="password" placeholder="用于加密导出文件与浏览器本地保险箱"></a-input-password>
+                </a-form-item>
+              </a-form>
+
+              <div class="wallet-actions">
+                <a-button type="primary" icon="plus" :loading="busy" @click="createWallet">生成新钱包</a-button>
+                <a-button icon="lock" :disabled="!wallet || !password" :loading="busy" @click="saveVault">保存到本地保险箱</a-button>
+                <a-button icon="unlock" :disabled="!password" :loading="busy" @click="loadVault">解锁本地保险箱</a-button>
+                <a-button icon="delete" type="danger" :disabled="!hasVault" @click="clearVault">清除本地保险箱</a-button>
+              </div>
+            </a-space>
+          </a-card>
+        </a-col>
+
+        <a-col :xs="24" :lg="14">
+          <a-card hoverable title="当前钱包">
+            <template #extra>
+              <a-tag :color="wallet ? 'green' : 'default'">[[ wallet ? wallet.algorithm : 'Offline' ]]</a-tag>
+            </template>
+            <a-descriptions bordered :column="1" size="small" v-if="wallet">
+              <a-descriptions-item label="名称">[[ wallet.name ]]</a-descriptions-item>
+              <a-descriptions-item label="地址指纹">
+                <span class="mono-field break-all">[[ wallet.address ]]</span>
+              </a-descriptions-item>
+              <a-descriptions-item label="创建时间">[[ wallet.createdAt ]]</a-descriptions-item>
+              <a-descriptions-item label="公钥">
+                <span class="mono-field break-all">[[ publicKeyText ]]</span>
+              </a-descriptions-item>
+            </a-descriptions>
+            <a-empty v-else description="生成或导入钱包后将在这里显示地址指纹和公钥"></a-empty>
+          </a-card>
+        </a-col>
+
+        <a-col :xs="24" :lg="12">
+          <a-card hoverable title="离线备份 / 恢复">
+            <a-space direction="vertical" style="width: 100%" size="middle">
+              <a-alert type="info" show-icon message="导出的文件已使用密码加密">
+                <template slot="description">恢复时必须输入同一个密码。请将加密文件和密码分别离线保存。</template>
+              </a-alert>
+              <div class="wallet-actions">
+                <a-button icon="download" :disabled="!wallet || !password" :loading="busy" @click="exportEncryptedWallet">导出加密钱包</a-button>
+                <a-button icon="upload" @click="selectWalletFile">导入加密钱包</a-button>
+                <input ref="walletFile" type="file" accept="application/json,.json" style="display: none" @change="importEncryptedWallet">
+                <a-button icon="copy" :disabled="!wallet" @click="copyAddress">复制地址指纹</a-button>
+              </div>
+            </a-space>
+          </a-card>
+        </a-col>
+
+        <a-col :xs="24" :lg="12">
+          <a-card hoverable title="离线消息签名">
+            <a-form layout="vertical">
+              <a-form-item label="待签名消息">
+                <a-textarea v-model="message" :rows="4" placeholder="输入需要离线签名的文本"></a-textarea>
+              </a-form-item>
+              <a-form-item label="签名结果（Base64）">
+                <a-textarea class="mono-field" v-model="signature" :rows="4" readonly></a-textarea>
+              </a-form-item>
+            </a-form>
+            <div class="wallet-actions">
+              <a-button type="primary" icon="form" :disabled="!wallet || !message" :loading="busy" @click="signMessage">签名消息</a-button>
+              <a-button icon="safety-certificate" :disabled="!wallet || !message || !signature" :loading="busy" @click="verifySignature">本地验签</a-button>
+              <a-button icon="copy" :disabled="!signature" @click="copySignature">复制签名</a-button>
+            </div>
+          </a-card>
+        </a-col>
+      </a-row>
+    </a-layout-content>
+  </a-layout>
+</a-layout>
+{{ template "page/body_scripts" .}}
+{{template "component/aSidebar" .}}
+{{template "component/aThemeSwitch" .}}
+<script>
+  const WALLET_VAULT_KEY = 'offlineWebWalletVault';
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
+
+  async function sha256(buffer) {
+    return await crypto.subtle.digest('SHA-256', buffer);
+  }
+
+  function bytesToBase64(bytes) {
+    let binary = '';
+    bytes.forEach(byte => binary += String.fromCharCode(byte));
+    return btoa(binary);
+  }
+
+  function base64ToBytes(base64) {
+    const binary = atob(base64);
+    return Uint8Array.from(binary, char => char.charCodeAt(0));
+  }
+
+  function bytesToHex(bytes) {
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function deriveEncryptionKey(password, salt) {
+    const keyMaterial = await crypto.subtle.importKey('raw', textEncoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  async function encryptPayload(payload, password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveEncryptionKey(password, salt);
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, textEncoder.encode(JSON.stringify(payload)));
+    return {
+      version: 1,
+      kdf: 'PBKDF2-SHA256-250000',
+      cipher: 'AES-256-GCM',
+      salt: bytesToBase64(salt),
+      iv: bytesToBase64(iv),
+      ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+    };
+  }
+
+  async function decryptPayload(container, password) {
+    const salt = base64ToBytes(container.salt);
+    const iv = base64ToBytes(container.iv);
+    const key = await deriveEncryptionKey(password, salt);
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, base64ToBytes(container.ciphertext));
+    return JSON.parse(textDecoder.decode(plaintext));
+  }
+
+  async function buildWallet(name, keyPair, privateJwk) {
+    const publicJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const publicSpki = await crypto.subtle.exportKey('spki', keyPair.publicKey);
+    const digest = new Uint8Array(await sha256(publicSpki));
+    return {
+      name: name || 'Offline Wallet',
+      algorithm: 'ECDSA P-256 / SHA-256',
+      address: 'ow1-' + bytesToHex(digest.slice(0, 20)),
+      createdAt: new Date().toISOString(),
+      publicJwk,
+      privateJwk
+    };
+  }
+
+  const app = new Vue({
+    delimiters: ['[[', ']]'],
+    mixins: [MediaQueryMixin],
+    el: '#app',
+    data: {
+      themeSwitcher,
+      busy: false,
+      walletName: 'Offline Wallet',
+      password: '',
+      wallet: null,
+      keyPair: null,
+      message: '',
+      signature: '',
+      hasVault: Boolean(localStorage.getItem(WALLET_VAULT_KEY))
+    },
+    computed: {
+      publicKeyText() {
+        return this.wallet ? JSON.stringify(this.wallet.publicJwk) : '';
+      }
+    },
+    methods: {
+      async runBusy(task) {
+        this.busy = true;
+        try {
+          await task();
+        } catch (error) {
+          console.error(error);
+          this.$message.error(error.message || '操作失败');
+        } finally {
+          this.busy = false;
+        }
+      },
+      async createWallet() {
+        await this.runBusy(async () => {
+          const keyPair = await crypto.subtle.generateKey(
+            { name: 'ECDSA', namedCurve: 'P-256' },
+            true,
+            ['sign', 'verify']
+          );
+          const privateJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+          this.keyPair = keyPair;
+          this.wallet = await buildWallet(this.walletName, keyPair, privateJwk);
+          this.signature = '';
+          this.$message.success('离线钱包已生成');
+        });
+      },
+      async restoreWallet(payload) {
+        const privateKey = await crypto.subtle.importKey(
+          'jwk',
+          payload.privateJwk,
+          { name: 'ECDSA', namedCurve: 'P-256' },
+          true,
+          ['sign']
+        );
+        const publicKey = await crypto.subtle.importKey(
+          'jwk',
+          payload.publicJwk,
+          { name: 'ECDSA', namedCurve: 'P-256' },
+          true,
+          ['verify']
+        );
+        this.keyPair = { privateKey, publicKey };
+        this.wallet = payload;
+        this.walletName = payload.name;
+        this.signature = '';
+      },
+      async saveVault() {
+        if (!this.wallet || !this.password) return;
+        await this.runBusy(async () => {
+          const encrypted = await encryptPayload(this.wallet, this.password);
+          localStorage.setItem(WALLET_VAULT_KEY, JSON.stringify(encrypted));
+          this.hasVault = true;
+          this.$message.success('已保存到浏览器本地保险箱');
+        });
+      },
+      async loadVault() {
+        if (!this.password) return;
+        await this.runBusy(async () => {
+          const raw = localStorage.getItem(WALLET_VAULT_KEY);
+          if (!raw) throw new Error('没有找到本地保险箱');
+          const payload = await decryptPayload(JSON.parse(raw), this.password);
+          await this.restoreWallet(payload);
+          this.$message.success('本地保险箱已解锁');
+        });
+      },
+      clearVault() {
+        localStorage.removeItem(WALLET_VAULT_KEY);
+        this.hasVault = false;
+        this.$message.success('本地保险箱已清除');
+      },
+      async exportEncryptedWallet() {
+        if (!this.wallet || !this.password) return;
+        await this.runBusy(async () => {
+          const encrypted = await encryptPayload(this.wallet, this.password);
+          const blob = new Blob([JSON.stringify(encrypted, null, 2)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${this.wallet.name.replace(/[^a-z0-9_-]/gi, '_')}-offline-wallet.json`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+        });
+      },
+      selectWalletFile() {
+        this.$refs.walletFile.click();
+      },
+      async importEncryptedWallet(event) {
+        const file = event.target.files[0];
+        event.target.value = '';
+        if (!file || !this.password) {
+          this.$message.warning('请选择文件并输入密码');
+          return;
+        }
+        await this.runBusy(async () => {
+          const encrypted = JSON.parse(await file.text());
+          const payload = await decryptPayload(encrypted, this.password);
+          await this.restoreWallet(payload);
+          this.$message.success('加密钱包已导入');
+        });
+      },
+      async signMessage() {
+        if (!this.wallet || !this.message) return;
+        await this.runBusy(async () => {
+          const signature = await crypto.subtle.sign(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            this.keyPair.privateKey,
+            textEncoder.encode(this.message)
+          );
+          this.signature = bytesToBase64(new Uint8Array(signature));
+          this.$message.success('消息已离线签名');
+        });
+      },
+      async verifySignature() {
+        if (!this.wallet || !this.message || !this.signature) return;
+        await this.runBusy(async () => {
+          const valid = await crypto.subtle.verify(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            this.keyPair.publicKey,
+            base64ToBytes(this.signature),
+            textEncoder.encode(this.message)
+          );
+          valid ? this.$message.success('签名验证通过') : this.$message.error('签名验证失败');
+        });
+      },
+      async copyText(text, successMessage) {
+        await navigator.clipboard.writeText(text);
+        this.$message.success(successMessage);
+      },
+      copyAddress() {
+        if (this.wallet) this.copyText(this.wallet.address, '地址指纹已复制');
+      },
+      copySignature() {
+        if (this.signature) this.copyText(this.signature, '签名已复制');
+      }
+    }
+  });
+</script>
+{{ template "page/body_end" .}}
