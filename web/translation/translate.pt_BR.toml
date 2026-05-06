@@ -94,6 +94,7 @@
 "inbounds" = "Inbounds"
 "settings" = "Panel Settings"
 "xray" = "Xray Configs"
+"wallet" = "Offline Wallet"
 "logout" = "Sair"
 "link" = "Gerenciar"
 
@@ -771,3 +772,6 @@
 "askToAddUserId" = "Sua configuração não foi encontrada!\r\nPeça ao seu administrador para usar seu Telegram ChatID em suas configurações.\r\n\r\nSeu ChatID: <code>{{ .TgUserID }}</code>"
 "chooseClient" = "Escolha um cliente para Inbound {{ .Inbound }}"
 "chooseInbound" = "Escolha um Inbound"
+
+[pages.wallet]
+"title" = "Offline Wallet"

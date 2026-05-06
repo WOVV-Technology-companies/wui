@@ -94,6 +94,7 @@
 "inbounds" = "الإدخالات"
 "settings" = "إعدادات البانل"
 "xray" = "إعدادات Xray"
+"wallet" = "Offline Wallet"
 "logout" = "تسجيل خروج"
 "link" = "إدارة"
 
@@ -771,3 +772,6 @@
 "askToAddUserId" = "مافيش إعدادات ليك!\r\nاطلب من الأدمن يضيف الـ Telegram ChatID الخاص بيك في إعداداتك.\r\n\r\nالـ ChatID بتاعك: <code>{{ .TgUserID }}</code>"
 "chooseClient" = "اختار عميل للإدخال {{ .Inbound }}"
 "chooseInbound" = "اختار الإدخال"
+
+[pages.wallet]
+"title" = "Offline Wallet"

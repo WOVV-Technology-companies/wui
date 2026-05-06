@@ -94,6 +94,7 @@
 "inbounds" = "入站列表"
 "settings" = "面板設定"
 "xray" = "Xray 設定"
+"wallet" = "離線錢包"
 "logout" = "退出登入"
 "link" = "管理"
 
@@ -771,3 +772,6 @@
 "askToAddUserId" = "未找到您的配置！\r\n請向管理員詢問，在您的配置中使用您的 Telegram 使用者 ChatID。\r\n\r\n您的使用者 ChatID：<code>{{ .TgUserID }}</code>"
 "chooseClient" = "為入站 {{ .Inbound }} 選擇一個客戶"
 "chooseInbound" = "選擇一個入站"
+
+[pages.wallet]
+"title" = "離線錢包"

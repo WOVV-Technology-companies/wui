@@ -94,6 +94,7 @@
 "inbounds" = "Gelenler"
 "settings" = "Panel Ayarları"
 "xray" = "Xray Yapılandırmaları"
+"wallet" = "Offline Wallet"
 "logout" = "Çıkış Yap"
 "link" = "Yönet"
 
@@ -771,3 +772,6 @@
 "askToAddUserId" = "Yapılandırmanız bulunamadı!\r\nLütfen yöneticinizden yapılandırmalarınıza Telegram ChatID'nizi eklemesini isteyin.\r\n\r\nKullanıcı ChatID'niz: <code>{{ .TgUserID }}</code>"
 "chooseClient" = "Gelen {{ .Inbound }} için bir Müşteri Seçin"
 "chooseInbound" = "Bir Gelen Seçin"
+
+[pages.wallet]
+"title" = "Offline Wallet"

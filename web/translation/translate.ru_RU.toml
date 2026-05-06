@@ -94,6 +94,7 @@
 "inbounds" = "Подключения"
 "settings" = "Настройки"
 "xray" = "Настройки Xray"
+"wallet" = "Offline Wallet"
 "logout" = "Выход"
 "link" = "Управление"
 
@@ -771,3 +772,6 @@
 "askToAddUserId" = "❌ Ваша конфигурация не найдена!\r\n💭 Пожалуйста, попросите администратора использовать ваш Telegram User ID в конфигурации.\r\n\r\n🆔 Ваш User ID: <code>{{ .TgUserID }}</code>"
 "chooseClient" = "Выберите клиента для входящего подключения {{ .Inbound }}"
 "chooseInbound" = "Выберите входящее подключение"
+
+[pages.wallet]
+"title" = "Offline Wallet"
